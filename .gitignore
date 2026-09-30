@@ -34,3 +34,6 @@ redis_data/
 Thumbs.db
 .vscode/
 .idea/
+
+# Yerel mimari notları (depoda paylaşılmaz)
+ARCHITECTURE.md

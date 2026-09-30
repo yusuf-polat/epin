@@ -1,6 +1,6 @@
 # NexusPin — P2P E-Pin & Dijital Ürün Pazar Yeri
 
-Alıcıların dijital kod / e-pin satın aldığı, onaylı satıcıların mağaza açıp ilan verdiği, ödemelerin **escrow (güvenli havuz)** ile korunduğu P2P pazar yeri. Mimari kurallar için [ARCHITECTURE.md](./ARCHITECTURE.md) dosyasına bakınız.
+Alıcıların dijital kod / e-pin satın aldığı, onaylı satıcıların mağaza açıp ilan verdiği, ödemelerin **escrow (güvenli havuz)** ile korunduğu P2P pazar yeri.
 
 ## Teknolojiler
 
