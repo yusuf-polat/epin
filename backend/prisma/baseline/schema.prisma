@@ -1,0 +1,456 @@
+// 0_init migration ile birebir aynı şema. Yalnızca migration öncesi (db push ile
+// oluşturulmuş) veritabanlarını 0_init seviyesine getirmek için kullanılır.
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// ─── Enums ───────────────────────────────────────────────────────────────────
+
+enum Role {
+  USER
+  DESTEK
+  ADMIN
+}
+
+enum SellerRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PinStatus {
+  AVAILABLE
+  RESERVED
+  SOLD
+}
+
+enum OrderStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum EscrowStatus {
+  HELD_IN_ESCROW
+  RELEASED_TO_SELLER
+  DISPUTED
+  REFUNDED_TO_BUYER
+  REPLACED
+}
+
+enum DisputeReason {
+  INVALID_CODE
+  ALREADY_USED
+  WRONG_PRODUCT
+  OTHER
+}
+
+enum DisputeStatus {
+  WAITING_SELLER
+  SELLER_APPROVED
+  WAITING_SUPPORT
+  RESOLVED_BUYER
+  RESOLVED_SELLER
+  CANCELLED
+}
+
+enum DeliveryType {
+  INSTANT
+  MANUAL
+  API
+}
+
+enum DeliveryStatus {
+  PENDING
+  DELIVERED
+  FAILED
+}
+
+enum PaymentMethod {
+  WALLET
+  CREDIT_CARD
+  HAVALE_EFT
+}
+
+enum ProductApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum NotificationType {
+  ORDER
+  DISPUTE
+  SELLER_REQUEST
+  PRODUCT
+  SYSTEM
+  WALLET
+  SUPPORT
+  MESSAGE
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_USER
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+// ─── Models ──────────────────────────────────────────────────────────────────
+
+model User {
+  id               String    @id @default(uuid())
+  email            String    @unique
+  name             String
+  password         String
+  role             Role      @default(USER)
+  walletBalance    Decimal   @default(0.00) @db.Decimal(12, 2)
+  avatarUrl        String?
+  phone            String?
+  canSell          Boolean   @default(false)
+  sellerApprovedAt DateTime?
+  isBanned         Boolean   @default(false)
+  bannedAt         DateTime?
+  banReason        String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  orders           Order[]
+  digitalPins      DigitalPin[]
+  cartItems        CartItem[]
+  reviews          Review[]
+  sellingProducts  Product[]        @relation("UserSellingProducts")
+  buyerDisputes    Dispute[]        @relation("BuyerDisputes")
+  sellerDisputes   Dispute[]        @relation("SellerDisputes")
+  sellerRequests   SellerRequest[]
+  notifications    Notification[]
+  store            Store?
+  tickets          SupportTicket[]        @relation("UserTickets")
+  ticketMessages   SupportTicketMessage[] @relation("TicketSender")
+  conversations1   Conversation[]         @relation("User1Conversations")
+  conversations2   Conversation[]         @relation("User2Conversations")
+  sentMessages     DirectMessage[]        @relation("SentDirectMessages")
+
+  @@map("users")
+}
+
+model Store {
+  id          String   @id @default(uuid())
+  userId      String   @unique
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  logoUrl     String
+  coverUrl    String
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  owner       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("stores")
+}
+
+model RolePermission {
+  id         String   @id @default(uuid())
+  role       Role
+  permission String
+  createdAt  DateTime @default(now())
+
+  @@unique([role, permission])
+  @@map("role_permissions")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model Category {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  description String?
+  icon        String?
+  imageUrl    String
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products    Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id              String                @id @default(uuid())
+  title           String
+  slug            String                @unique
+  description     String
+  shortDesc       String?
+  categoryId      String
+  imageUrl        String
+  bannerUrl       String?
+  galleryUrls     String[]              @default([])
+  brand           String
+  region          String                @default("Global")
+  instantDelivery Boolean               @default(true)
+  deliveryType    DeliveryType          @default(INSTANT)
+  deliveryDeadlineHours Int             @default(24)
+  deliveryInstructions String?
+  isFeatured      Boolean               @default(false)
+  isPopular       Boolean               @default(false)
+  isMarketplace   Boolean               @default(false)
+  sellerId        String?
+  approvalStatus  ProductApprovalStatus @default(APPROVED)
+  approvedAt      DateTime?
+  approvedById    String?
+  rejectedReason  String?
+  slaDeliverySeconds Float              @default(0.42)
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  seller          User?            @relation("UserSellingProducts", fields: [sellerId], references: [id], onDelete: SetNull)
+  category        Category         @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  variants        ProductVariant[]
+  reviews         Review[]
+  conversations   Conversation[]   @relation("ConversationProduct")
+
+  @@map("products")
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  userId    String
+  productId String
+  orderId   String?
+  rating    Int      @default(5)
+  comment   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@map("reviews")
+}
+
+model ProductVariant {
+  id            String     @id @default(uuid())
+  productId     String
+  title         String
+  denomination  String
+  price         Decimal    @db.Decimal(12, 2)
+  originalPrice Decimal?   @db.Decimal(12, 2)
+  stockCount    Int        @default(0)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  product       Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+  pins          DigitalPin[]
+  orderItems    OrderItem[]
+  cartItems     CartItem[]
+
+  @@map("product_variants")
+}
+
+model DigitalPin {
+  id           String         @id @default(uuid())
+  variantId    String
+  code         String
+  serialNumber String?
+  status       PinStatus      @default(AVAILABLE)
+  orderId      String?
+  userId       String?
+  soldAt       DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  variant      ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  order        Order?         @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  user         User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("digital_pins")
+}
+
+model Order {
+  id            String        @id @default(uuid())
+  orderNumber   String        @unique
+  userId        String
+  totalAmount   Decimal       @db.Decimal(12, 2)
+  paymentMethod PaymentMethod @default(WALLET)
+  status        OrderStatus   @default(COMPLETED)
+  deliveryType  DeliveryType  @default(INSTANT)
+  deliveryStatus DeliveryStatus @default(DELIVERED)
+  deliveredAt   DateTime?
+  deliveryNotes String?
+  escrowStatus  EscrowStatus  @default(HELD_IN_ESCROW)
+  escrowAmount  Decimal?      @db.Decimal(12, 2)
+  autoReleaseAt DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items         OrderItem[]
+  pins          DigitalPin[]
+  dispute       Dispute?
+
+  @@map("orders")
+}
+
+model Dispute {
+  id                String        @id @default(uuid())
+  orderId           String        @unique
+  buyerId           String
+  sellerId          String
+  reason            DisputeReason
+  description       String
+  videoUrl          String
+  status            DisputeStatus @default(WAITING_SELLER)
+  sellerResponse    String?
+  sellerAction      String?
+  sellerActionAt    DateTime?
+  replacementCode   String?
+  resolvedByAdminId String?
+  adminNotes        String?
+  resolvedAt        DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  order             Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  buyer             User          @relation("BuyerDisputes", fields: [buyerId], references: [id], onDelete: Cascade)
+  seller            User          @relation("SellerDisputes", fields: [sellerId], references: [id], onDelete: Cascade)
+
+  @@map("disputes")
+}
+
+model OrderItem {
+  id         String         @id @default(uuid())
+  orderId    String
+  variantId  String
+  quantity   Int            @default(1)
+  unitPrice  Decimal        @db.Decimal(12, 2)
+  totalPrice Decimal        @db.Decimal(12, 2)
+
+  order      Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variant    ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+
+  @@map("order_items")
+}
+
+model CartItem {
+  id        String         @id @default(uuid())
+  userId    String
+  variantId String
+  quantity  Int            @default(1)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, variantId])
+  @@map("cart_items")
+}
+
+model SellerRequest {
+  id         String              @id @default(uuid())
+  userId     String
+  reason     String
+  status     SellerRequestStatus @default(PENDING)
+  adminNotes String?
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+
+  user       User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("seller_requests")
+}
+
+model SupportTicket {
+  id           String                 @id @default(uuid())
+  ticketNumber String                 @unique
+  userId       String
+  subject      String
+  category     String
+  priority     TicketPriority         @default(MEDIUM)
+  status       TicketStatus           @default(OPEN)
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+
+  user         User                   @relation("UserTickets", fields: [userId], references: [id], onDelete: Cascade)
+  messages     SupportTicketMessage[]
+
+  @@map("support_tickets")
+}
+
+model SupportTicketMessage {
+  id           String        @id @default(uuid())
+  ticketId     String
+  senderId     String
+  message      String
+  isAdminReply Boolean       @default(false)
+  createdAt    DateTime      @default(now())
+
+  ticket       SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender       User          @relation("TicketSender", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@map("support_ticket_messages")
+}
+
+model Conversation {
+  id            String          @id @default(uuid())
+  user1Id       String
+  user2Id       String
+  productId     String?
+  lastMessage   String?
+  lastMessageAt DateTime        @default(now())
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  user1         User            @relation("User1Conversations", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2         User            @relation("User2Conversations", fields: [user2Id], references: [id], onDelete: Cascade)
+  product       Product?        @relation("ConversationProduct", fields: [productId], references: [id], onDelete: SetNull)
+  messages      DirectMessage[]
+
+  @@unique([user1Id, user2Id])
+  @@map("conversations")
+}
+
+model DirectMessage {
+  id             String       @id @default(uuid())
+  conversationId String
+  senderId       String
+  text           String
+  isRead         Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation("SentDirectMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@map("direct_messages")
+}

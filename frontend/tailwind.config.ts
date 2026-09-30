@@ -1,0 +1,62 @@
+import type { Config } from 'tailwindcss';
+
+const config: Config = {
+  content: ['./src/**/*.{js,ts,jsx,tsx,mdx}'],
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        'surface-variant': '#1a1d28',
+        'error-container': '#450a0a',
+        'secondary-fixed': '#1e293b',
+        'on-surface-variant': '#94a3b8',
+        'on-primary-fixed-variant': '#cbd5e1',
+        'primary-fixed': '#1e293b',
+        'tertiary-fixed-dim': '#10b981',
+        'surface-container-high': '#1a1c26',
+        'on-surface': '#f1f5f9',
+        'on-primary': '#ffffff',
+        'on-secondary': '#ffffff',
+        'surface-container-low': '#0e0f14',
+        'outline-variant': '#1f222e',
+        'surface-container-lowest': '#090a0f',
+        'tertiary-fixed': '#34d399',
+        error: '#ef4444',
+        'primary-container': '#12141c',
+        background: '#090a0f',
+        'secondary-container': '#1e293b',
+        'on-tertiary-container': '#10b981',
+        tertiary: '#10b981',
+        'surface-tint': '#38bdf8',
+        surface: '#0f1117',
+        'surface-dim': '#0c0d12',
+        primary: '#38bdf8',
+        outline: '#272b38',
+        'surface-container': '#13151d',
+        'surface-bright': '#181b24',
+        secondary: '#38bdf8',
+        'on-background': '#f1f5f9',
+        'surface-container-highest': '#202432',
+      },
+      fontFamily: {
+        body: ['var(--font-inter)', 'sans-serif'],
+        display: ['var(--font-plus-jakarta)', 'sans-serif'],
+        mono: ['var(--font-jetbrains-mono)', 'monospace'],
+      },
+      spacing: {
+        'gutter-mobile': '1rem',
+        margin: '2rem',
+        'space-lg': '1.5rem',
+        gutter: '1.5rem',
+        'margin-mobile': '1rem',
+        'space-md': '1rem',
+        'space-xl': '2rem',
+        'space-sm': '0.5rem',
+        'space-xs': '0.25rem',
+      },
+    },
+  },
+  plugins: [],
+};
+
+export default config;

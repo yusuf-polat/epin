@@ -1,0 +1,132 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: nexuspin_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgrespassword}
+      POSTGRES_DB: ${POSTGRES_DB:-nexuspin}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-nexuspin}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis (cache, rate limit, job lock)
+  redis:
+    image: redis:7-alpine
+    container_name: nexuspin_redis
+    restart: unless-stopped
+    # Yalnızca iç ağdan erişilir; host'a port açılmaz
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Node.js Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: runner
+    container_name: nexuspin_backend
+    restart: unless-stopped
+    ports:
+      - "${BACKEND_PORT:-5000}:5000"
+    env_file:
+      - ./backend/.env
+    environment:
+      PORT: 5000
+      NODE_ENV: ${NODE_ENV:-production}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgrespassword}@postgres:5432/${POSTGRES_DB:-nexuspin}?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in .env}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+      APP_URL: ${APP_URL:-http://localhost:5000}
+      COOKIE_SECURE: ${COOKIE_SECURE:-auto}
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
+      ENABLE_WALLET_TOPUP: ${ENABLE_WALLET_TOPUP:-false}
+      RUN_SEED: ${RUN_SEED:-true}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      # Ödeme sağlayıcılarının webhook/callback için ulaşacağı herkese açık backend adresi (boşsa APP_URL)
+      PUBLIC_API_URL: ${PUBLIC_API_URL:-}
+      FRONTEND_URL: ${FRONTEND_URL:-}
+      # Ödeme API anahtarları ve 2FA anahtarlarını şifreler; değiştirilirse kayıtlı anahtarlar yeniden girilmelidir
+      DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY:-}
+    volumes:
+      - backend_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Backend testleri (yalnızca: docker compose --profile test run --rm backend-test)
+  backend-test:
+    profiles: ["test"]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+      target: test
+    environment:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgrespassword}@postgres:5432/nexuspin_test?schema=public
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: integration-test-secret-integration-test
+      CORS_ORIGIN: http://localhost:3000
+      ENABLE_WALLET_TOPUP: "false"
+      PLATFORM_COMMISSION_PERCENT: "8"
+      PLATFORM_BANK_NAME: Test Bank
+      PLATFORM_BANK_HOLDER: NexusPin Test
+      PLATFORM_BANK_IBAN: TR330006100519786457841326
+    command: sh -c "npm run test:unit && npm run test:integration"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Next.js Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: runner
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:5000/api}
+        NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-}
+    container_name: nexuspin_frontend
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    environment:
+      NODE_ENV: production
+      INTERNAL_API_URL: ${INTERNAL_API_URL:-http://backend:5000/api}
+      # Sitemap, robots.txt ve paylaşım bağlantıları için herkese açık site adresi
+      SITE_URL: ${SITE_URL:-http://localhost:3000}
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  # Frontend testleri (yalnızca: docker compose --profile test run --rm frontend-test)
+  frontend-test:
+    profiles: ["test"]
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: test
+
+volumes:
+  postgres_data:
+  redis_data:
+  backend_uploads:

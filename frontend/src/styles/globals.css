@@ -1,0 +1,96 @@
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    margin: 0;
+    padding: 0;
+    background-color: #090a0f;
+    color: #f1f5f9;
+    font-family: var(--font-inter), sans-serif;
+  }
+}
+
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Kaydırma çubukları */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0d0e14;
+}
+::-webkit-scrollbar-thumb {
+  background: #222533;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #334155;
+}
+
+/* Nexus Design System: Inputs & Form Controls */
+.nexus-input, .nexus-select, .nexus-textarea {
+  background-color: #0b0d14;
+  border: 1px solid #1e2335;
+  border-radius: 0.875rem;
+  color: #ffffff;
+  font-size: 0.8125rem;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.3);
+}
+
+.nexus-input:hover, .nexus-select:hover, .nexus-textarea:hover {
+  border-color: #2b324d;
+  background-color: #0e111a;
+}
+
+.nexus-input:focus, .nexus-select:focus, .nexus-textarea:focus {
+  outline: none;
+  border-color: #38bdf8;
+  background-color: #0f131f;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+}
+
+.nexus-input::placeholder, .nexus-textarea::placeholder {
+  color: #4b5563;
+}
+
+/* Global input enhancements */
+input:not([type="checkbox"]):not([type="radio"]), select, textarea {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):focus, select:focus, textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.15);
+}
+
+/* Ana sayfa slaytının otomatik geçiş göstergesi */
+@keyframes hero-progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

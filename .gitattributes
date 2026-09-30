@@ -1,0 +1,5 @@
+# Tüm metin dosyaları depoda LF satır sonuyla tutulur (Linux container'larında betikler bozulmasın)
+* text=auto eol=lf
+*.sh text eol=lf
+*.png binary
+*.jpg binary
